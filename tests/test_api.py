@@ -180,6 +180,30 @@ def test_zero_edge_graph_round_trips(tmp_path):
     assert g2.num_edges == 0 and g2.edge_feats["u_grid"].shape == (0, 6, 10)
 
 
+def test_graphs_without_node_features_round_trip(tmp_path):
+    """num_faces must come from the archive, not from the first node feature."""
+    for name, features in {
+        "edges": bg.FeatureSet(edges=["length"]),
+        "pairs": bg.FeatureSet(pairs=["shortest_path"]),
+        "empty": bg.FeatureSet(),
+    }.items():
+        g = bg.load(F.pocket_box(), features)
+        g.save(tmp_path / f"{name}.npz")
+        g2 = bg.BrepGraph.load(tmp_path / f"{name}.npz")
+        assert (g2.num_faces, g2.num_edges) == (11, 24), name
+        np.testing.assert_array_equal(g.edge_index, g2.edge_index)
+
+
+def test_archive_without_num_faces_still_loads(tmp_path):
+    """Archives written before num_faces was stored fall back to the first node feature."""
+    g = bg.load(F.box())
+    g.save(tmp_path / "new.npz")
+    with np.load(tmp_path / "new.npz", allow_pickle=False) as z:
+        legacy = {k: z[k] for k in z.files if k != "num_faces"}
+    np.savez_compressed(tmp_path / "old.npz", **legacy)
+    assert bg.BrepGraph.load(tmp_path / "old.npz").num_faces == 6
+
+
 def test_incompatible_schema_rejected(tmp_path):
     g = bg.load(F.box())
     g.schema_version = "2.0.0"

@@ -79,6 +79,7 @@ class BrepGraph:
         """Write a compressed ``.npz`` archive (loadable with ``allow_pickle=False``)."""
         arrays: dict[str, np.ndarray] = {
             "schema_version": np.array(self.schema_version),
+            "num_faces": np.array(self.num_faces),
             "edge_index": self.edge_index,
             "meta": np.array(json.dumps(self.meta, sort_keys=True)),
         }
@@ -101,8 +102,12 @@ class BrepGraph:
             pair = {k[5:]: z[k] for k in z.files if k.startswith("pair/")}
             edge_index = z["edge_index"].astype(np.int64, copy=False)
             meta = json.loads(str(z["meta"]))
+            if "num_faces" in z.files:
+                num_faces = int(z["num_faces"])
+            else:  # archives written before num_faces was stored
+                num_faces = int(next(iter(node.values())).shape[0]) if node else 0
         g = cls(
-            num_faces=int(next(iter(node.values())).shape[0]) if node else int(meta.get("num_faces", 0)),
+            num_faces=num_faces,
             num_edges=int(edge_index.shape[1]),
             edge_index=edge_index,
             node_feats=node,
