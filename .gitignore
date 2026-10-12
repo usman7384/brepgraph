@@ -1,0 +1,27 @@
+# environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# build and coverage output
+build/
+dist/
+*.egg-info/
+.coverage
+htmlcov/
+
+# generated data
+*.npz
+tests/data/*
+!tests/data/.gitkeep
+
+# editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

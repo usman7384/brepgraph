@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.ipynb linguist-documentation
+*.step binary
+*.stp binary
+*.npz binary
