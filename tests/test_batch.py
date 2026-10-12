@@ -100,3 +100,29 @@ def test_cli_batch_all_ok_and_errors(dataset, tmp_path, capsys):
     (tmp_path / "empty").mkdir()
     assert cli.main(["batch", str(tmp_path / "empty"), "-o", str(out)]) == 1
     assert "no .step/.stp/.iges/.igs/.brep files found" in capsys.readouterr().err
+
+
+def test_workers_run_numerical_libraries_single_threaded(monkeypatch):
+    monkeypatch.delenv("OPENBLAS_NUM_THREADS", raising=False)
+    monkeypatch.setenv("OMP_NUM_THREADS", "3")  # an explicit user setting is respected
+    results = run_parallel(batch_helpers.thread_env, [0, 1], error_result=None, workers=2)
+    assert results == [("1", "3"), ("1", "3")]
+    import os
+
+    assert "OPENBLAS_NUM_THREADS" not in os.environ  # the parent environment is restored
+
+
+def test_default_worker_count_is_capped(monkeypatch):
+    from brepgraph import batch
+
+    seen = {}
+
+    def fake_rounds(fn, items, error_result, workers, finish, marker_dir):
+        seen["workers"] = workers
+        for i, item in enumerate(items):
+            finish(i, fn(item))
+
+    monkeypatch.setattr(batch, "_run_rounds", fake_rounds)
+    monkeypatch.setattr(batch.os, "cpu_count", lambda: 64)
+    assert run_parallel(batch_helpers.square, [2, 3], error_result=None) == [4, 9]
+    assert seen["workers"] == batch.DEFAULT_MAX_WORKERS

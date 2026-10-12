@@ -16,6 +16,7 @@ import tempfile
 from collections.abc import Callable, Iterable, Sequence
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from concurrent.futures.process import BrokenProcessPool
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,11 @@ from .errors import FileReadError
 from .graph import BrepGraph
 
 CRASH_MESSAGE = "worker process crashed (native error inside OpenCASCADE?)"
+#: default number of worker processes; each one carries a full OpenCASCADE runtime (a few hundred MB)
+DEFAULT_MAX_WORKERS = 8
+#: thread-pool sizes for the numerical libraries inside workers. Workers do small per-sample maths, and
+#: N processes each starting N BLAS threads (with per-thread buffers) can exhaust memory.
+WORKER_THREAD_ENV = {"OPENBLAS_NUM_THREADS": "1", "OMP_NUM_THREADS": "1", "MKL_NUM_THREADS": "1"}
 CAD_SUFFIXES = (".step", ".stp", ".iges", ".igs", ".brep", ".brp")
 
 
@@ -50,6 +56,22 @@ def _tracked(fn: Callable, marker_dir: str, index: int, item: Any):
         marker.unlink(missing_ok=True)
 
 
+@contextmanager
+def _single_threaded_workers():
+    """Make spawned workers start with one BLAS / OpenMP thread, unless the user set these already."""
+    saved = {key: os.environ.get(key) for key in WORKER_THREAD_ENV}
+    for key, value in WORKER_THREAD_ENV.items():
+        os.environ.setdefault(key, value)
+    try:
+        yield
+    finally:
+        for key, previous in saved.items():
+            if previous is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = previous
+
+
 def run_parallel(
     fn: Callable[[Any], Any],
     items: Sequence[Any],
@@ -62,7 +84,8 @@ def run_parallel(
 
     ``fn`` must be a picklable top-level function (``functools.partial`` of one is fine) that
     handles its own errors. ``error_result(item, message)`` builds the result for an item whose
-    worker crashed. ``workers=1`` runs everything in this process (no crash protection).
+    worker crashed. ``workers`` defaults to ``min(CPU count, 8)``; ``workers=1`` runs everything in
+    this process (no crash protection). Workers run their numerical libraries single-threaded.
     """
     n = len(items)
     results: list[Any] = [None] * n
@@ -75,45 +98,51 @@ def run_parallel(
         if progress is not None:
             progress(done, n)
 
-    workers = workers or os.cpu_count() or 1
+    workers = workers or min(os.cpu_count() or 1, DEFAULT_MAX_WORKERS)
     if workers <= 1:
         for i, item in enumerate(items):
             finish(i, fn(item))
         return results
 
-    context = multiprocessing.get_context("spawn")  # same behaviour on every OS; no forked OCCT state
-    crashes = [0] * n
     marker_dir = tempfile.mkdtemp(prefix="brepgraph-batch-")
     try:
-        todo = list(range(n))
-        while todo:
-            pooled = [i for i in todo if crashes[i] < 2]
-            alone = [i for i in todo if crashes[i] >= 2]
-            todo = []
-            if pooled:
-                crashed = False
-                with ProcessPoolExecutor(min(workers, len(pooled)), mp_context=context) as pool:
-                    futures = {pool.submit(_tracked, fn, marker_dir, i, items[i]): i for i in pooled}
-                    for future in as_completed(futures):
-                        i = futures[future]
-                        try:
-                            finish(i, future.result())
-                        except BrokenProcessPool:
-                            crashed = True
-                            todo.append(i)
-                if crashed:  # only the files that were running when the pool broke are suspects
-                    for name in os.listdir(marker_dir):
-                        crashes[int(name)] += 1
-                        os.remove(os.path.join(marker_dir, name))
-            for i in alone:
-                with ProcessPoolExecutor(1, mp_context=context) as pool:
-                    try:
-                        finish(i, pool.submit(fn, items[i]).result())
-                    except BrokenProcessPool:
-                        finish(i, error_result(items[i], CRASH_MESSAGE))
+        with _single_threaded_workers():
+            _run_rounds(fn, items, error_result, workers, finish, marker_dir)
     finally:
         shutil.rmtree(marker_dir, ignore_errors=True)
     return results
+
+
+def _run_rounds(fn, items, error_result, workers: int, finish, marker_dir: str) -> None:
+    """Process items in pools; retry the items running when a pool broke, isolate repeat offenders."""
+    context = multiprocessing.get_context("spawn")  # same behaviour on every OS; no forked OCCT state
+    crashes = [0] * len(items)
+    todo = list(range(len(items)))
+    while todo:
+        pooled = [i for i in todo if crashes[i] < 2]
+        alone = [i for i in todo if crashes[i] >= 2]
+        todo = []
+        if pooled:
+            crashed = False
+            with ProcessPoolExecutor(min(workers, len(pooled)), mp_context=context) as pool:
+                futures = {pool.submit(_tracked, fn, marker_dir, i, items[i]): i for i in pooled}
+                for future in as_completed(futures):
+                    i = futures[future]
+                    try:
+                        finish(i, future.result())
+                    except BrokenProcessPool:
+                        crashed = True
+                        todo.append(i)
+            if crashed:  # only the items that were running when the pool broke are suspects
+                for name in os.listdir(marker_dir):
+                    crashes[int(name)] += 1
+                    os.remove(os.path.join(marker_dir, name))
+        for i in alone:
+            with ProcessPoolExecutor(1, mp_context=context) as pool:
+                try:
+                    finish(i, pool.submit(fn, items[i]).result())
+                except BrokenProcessPool:
+                    finish(i, error_result(items[i], CRASH_MESSAGE))
 
 
 def _load_one(source, options: dict[str, Any]) -> LoadResult:

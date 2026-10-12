@@ -12,3 +12,9 @@ def crash_on_marked(item):
 
 def square(x):
     return x * x
+
+
+def thread_env(_item):
+    import os
+
+    return os.environ.get("OPENBLAS_NUM_THREADS"), os.environ.get("OMP_NUM_THREADS")
