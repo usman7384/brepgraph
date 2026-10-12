@@ -19,7 +19,7 @@ from OCP.TopAbs import TopAbs_EDGE, TopAbs_REVERSED, TopAbs_WIRE
 from OCP.TopExp import TopExp_Explorer
 
 from . import meshing
-from .topology import Topology, bounding_box
+from .topology import Topology
 
 #: nudge fractions (towards the parametric centre) tried at singular points (poles, apexes)
 _NUDGES = (0.0, 1e-6, 1e-4, 1e-2)
@@ -59,8 +59,7 @@ class Context:
     def diagonal(self) -> float:
         """Length of the whole solid's bounding-box diagonal."""
         if self._diag is None:
-            b = bounding_box(self.topology.solid)
-            self._diag = float(np.linalg.norm(np.array(b[3:]) - np.array(b[:3])))
+            self._diag = meshing.diagonal(self.topology.solid)
         return self._diag
 
     def neighbors(self, i: int) -> set[int]:
