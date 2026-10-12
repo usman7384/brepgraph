@@ -10,7 +10,15 @@ uvnet = FeatureSet(
     edges=["curve_type", "length", "convexity", "dihedral_angle", "u_grid"],
 )
 
-_PRESETS = {"uvnet": uvnet}
+# BrepMFR (Zhang et al., CAGD 111, 2024): 5x5 grids, loop / adjacency counts, and the face-pair
+# proximity matrices (shortest-path distance, D2 and A3 histograms with 64 bins).
+brepmfr = FeatureSet(
+    nodes=["surface_type", "area", "num_loops", "num_adjacent_faces", ("uv_grid", {"size": 5})],
+    edges=["curve_type", "length", "convexity", "dihedral_angle", ("u_grid", {"size": 5})],
+    pairs=["shortest_path", "d2", "a3"],
+)
+
+_PRESETS = {"uvnet": uvnet, "brepmfr": brepmfr}
 
 
 def get(name: str) -> FeatureSet:
