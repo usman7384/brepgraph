@@ -18,7 +18,9 @@ and the project uses [Semantic Versioning](https://semver.org/). The graph layou
   convexity, optional graph overlay), `bg.viz.show_graph` (the face graph on its own, 2-D / 3-D / centroid
   layouts), `bg.viz.show_face` (UV samples, mask and normals) and `brepgraph view [--kind graph]`.
 - DGL adapter `BrepGraph.to_dgl()`; the PyG adapter can attach pair features.
-- `meta["source_path"]` records the resolved input path so the viewer can re-load the part.
+- `meta["source_path"]` records the resolved input path so the viewer can re-load the part. It is kept in
+  memory but not written to archives unless `save(..., include_source_path=True)` (CLI:
+  `convert --embed-source-path`), so shared datasets do not carry local directory names.
 - `examples/gnn_with_pyg.py`, `docs/using-with-gnns.md`, a demo notebook, mypy checks and coverage in CI.
 
 ## [0.1.0] - 2026-10-12
