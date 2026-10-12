@@ -6,6 +6,8 @@ need the same adaptor or property object do not recompute it.
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 from OCP.BRepAdaptor import BRepAdaptor_Curve, BRepAdaptor_Curve2d, BRepAdaptor_Surface
 from OCP.BRepGProp import BRepGProp
@@ -153,12 +155,16 @@ class Context:
         for frac in _NUDGES:
             if frac:
                 surf.D1(u + frac * (uc - u), v + frac * (vc - v), p, du, dv)
-            a, b = _xyz(du), _xyz(dv)
-            n = np.cross(a, b)
-            norm, scale = np.linalg.norm(n), np.linalg.norm(a) * np.linalg.norm(b)
+            # scalar arithmetic: np.cross / np.linalg.norm on 3-vectors cost more than the OCP call
+            ax, ay, az = du.X(), du.Y(), du.Z()
+            bx, by, bz = dv.X(), dv.Y(), dv.Z()
+            nx, ny, nz = ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx
+            norm = math.sqrt(nx * nx + ny * ny + nz * nz)
+            scale = math.sqrt(ax * ax + ay * ay + az * az) * math.sqrt(bx * bx + by * by + bz * bz)
             if scale > 0.0 and norm > 1e-9 * scale and norm > floor:
-                n /= norm
-                return point, (-n if self.face_reversed(i) else n)
+                sign = -1.0 if self.face_reversed(i) else 1.0
+                k = sign / norm
+                return point, np.array([nx * k, ny * k, nz * k])
         return point, None
 
     def edge(self, i: int):
