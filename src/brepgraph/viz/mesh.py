@@ -25,8 +25,17 @@ def reload_context(graph, source=None) -> Context:
                 "this graph has no source_path in meta (built from an in-memory shape, or loaded from an "
                 "archive saved without it): pass source=<path or shape>"
             )
-    solid, _ = io.load_solid(
-        source,
+    shape, _, _ = io.read_source(source)
+    index = graph.meta.get("solid_index")
+    if index is None:
+        raw = io.extract_solid(shape)
+    else:
+        solids = io.extract_solids(shape)
+        if index >= len(solids):
+            raise BrepGraphError(f"graph is solid {index} but the source has only {len(solids)} solids")
+        raw = solids[index]
+    solid, _ = io.prepare_solid(
+        raw,
         unify_faces=bool(graph.meta.get("unify_faces", False)),
         normalize=bool(graph.meta.get("normalize", False)),
     )

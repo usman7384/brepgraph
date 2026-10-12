@@ -67,16 +67,27 @@ def read_shape(path: str | os.PathLike[str]) -> TopoDS_Shape:
     raise FileReadError(f"{p}: unrecognised extension '{ext}' (use .step/.stp/.iges/.igs/.brep)")
 
 
-def extract_solid(shape: TopoDS_Shape):
-    """Return the single solid inside ``shape`` (unwrapping compounds)."""
+def extract_solids(shape: TopoDS_Shape) -> list:
+    """Every solid inside ``shape`` (compounds unwrapped), in a deterministic order.
+
+    Instances of the same solid placed at different locations count as separate solids.
+    """
     solids = ShapeIndexedMap()
     TopExp.MapShapes_s(shape, TopAbs_SOLID, solids)
-    n = solids.Extent()
-    if n == 0:
+    if solids.Extent() == 0:
         raise UnsupportedShapeError("no solid found (open shell or surface body?)")
-    if n > 1:
-        raise UnsupportedShapeError(f"expected exactly one solid, found {n} (assembly/multi-body)")
-    return to_solid(solids.FindKey(1))
+    return [to_solid(solids.FindKey(i)) for i in range(1, solids.Extent() + 1)]
+
+
+def extract_solid(shape: TopoDS_Shape):
+    """Return the single solid inside ``shape`` (unwrapping compounds)."""
+    solids = extract_solids(shape)
+    if len(solids) > 1:
+        raise UnsupportedShapeError(
+            f"expected exactly one solid, found {len(solids)} (assembly/multi-body); "
+            "use brepgraph.load_all() for one graph per solid"
+        )
+    return solids[0]
 
 
 def validate_and_heal(solid, *, heal: bool = True, unify_faces: bool = False):
@@ -121,6 +132,32 @@ def center_and_scale(solid):
     return extract_solid(BRepBuilderAPI_Transform(solid, scale, True).Shape())
 
 
+def read_source(source):
+    """Path or in-memory ``TopoDS_Shape`` -> ``(shape, file name, resolved path)``."""
+    if isinstance(source, TopoDS_Shape):
+        return source, None, None
+    return read_shape(source), Path(source).name, str(Path(source).resolve())
+
+
+def prepare_solid(solid, *, heal: bool = True, unify_faces: bool = False, normalize: bool = False):
+    """Validate / heal / optionally unify and normalise one solid. Returns ``(solid, healed)``."""
+    solid, healed = validate_and_heal(solid, heal=heal, unify_faces=unify_faces)
+    if normalize:
+        solid = center_and_scale(solid)
+    return solid, healed
+
+
+def source_info(name, full, healed: bool, unify_faces: bool, normalize: bool) -> dict:
+    """JSON-friendly description of where a solid came from, for ``meta``."""
+    return {
+        "source": name,
+        "source_path": full,
+        "healed": healed,
+        "unify_faces": unify_faces,
+        "normalize": normalize,
+    }
+
+
 def load_solid(
     source,
     *,
@@ -132,17 +169,8 @@ def load_solid(
 
     Returns ``(solid, info)`` where ``info`` is a JSON-friendly dict for ``meta``.
     """
-    if isinstance(source, TopoDS_Shape):
-        shape, name, full = source, None, None
-    else:
-        shape, name, full = read_shape(source), Path(source).name, str(Path(source).resolve())
-    solid, healed = validate_and_heal(extract_solid(shape), heal=heal, unify_faces=unify_faces)
-    if normalize:
-        solid = center_and_scale(solid)
-    return solid, {
-        "source": name,
-        "source_path": full,
-        "healed": healed,
-        "unify_faces": unify_faces,
-        "normalize": normalize,
-    }
+    shape, name, full = read_source(source)
+    solid, healed = prepare_solid(
+        extract_solid(shape), heal=heal, unify_faces=unify_faces, normalize=normalize
+    )
+    return solid, source_info(name, full, healed, unify_faces, normalize)

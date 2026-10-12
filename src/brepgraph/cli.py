@@ -11,23 +11,37 @@ from . import __version__, presets
 from .errors import BrepGraphError
 
 
-def _convert(args) -> None:
-    from .graph import BrepGraph  # noqa: F401
-    from .pipeline import load
+def solid_output_path(output: str | Path, solid_index: int, num_solids: int) -> Path:
+    """``part.npz`` for a single-solid file, ``part.solid<k>.npz`` for solid ``k`` of several."""
+    output = Path(output)
+    if num_solids == 1:
+        return output
+    return output.with_name(f"{output.stem}.solid{solid_index}{output.suffix}")
 
-    g = load(
-        args.input,
-        presets.get(args.preset),
+
+def _convert(args) -> None:
+    from .pipeline import load, load_all
+
+    options = dict(
         grid_size=args.grid_size,
         heal=not args.no_heal,
         unify_faces=args.unify_faces,
         normalize=args.normalize,
     )
-    g.save(args.output, include_source_path=args.embed_source_path)
-    print(
-        f"{args.input} -> {args.output}: {g.num_faces} faces, {g.num_edges} edges, "
-        f"{len(g.node_feats)} node + {len(g.edge_feats)} edge features"
-    )
+    if args.all_solids:
+        graphs = load_all(args.input, presets.get(args.preset), **options)
+        outputs = [
+            solid_output_path(args.output, g.meta["solid_index"], g.meta["num_solids"]) for g in graphs
+        ]
+    else:
+        graphs = [load(args.input, presets.get(args.preset), **options)]
+        outputs = [Path(args.output)]
+    for g, out in zip(graphs, outputs, strict=True):
+        g.save(out, include_source_path=args.embed_source_path)
+        print(
+            f"{args.input} -> {out}: {g.num_faces} faces, {g.num_edges} edges, "
+            f"{len(g.node_feats)} node + {len(g.edge_feats)} edge features"
+        )
 
 
 def _info(args) -> None:
@@ -74,6 +88,11 @@ def main(argv: list[str] | None = None) -> int:
         "--embed-source-path",
         action="store_true",
         help="store the absolute input path in the archive (lets the viewer re-load the part)",
+    )
+    c.add_argument(
+        "--all-solids",
+        action="store_true",
+        help="one graph per solid; several solids are written as OUTPUT.solid<k>.npz",
     )
     c.add_argument("--unify-faces", action="store_true", help="merge same-domain faces")
     c.add_argument("--no-heal", action="store_true", help="do not attempt ShapeFix on invalid input")

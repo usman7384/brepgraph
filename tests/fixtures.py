@@ -119,6 +119,18 @@ def scaled(shape, s):
     return BRepBuilderAPI_Transform(shape, t, True).Shape()
 
 
+def compound(*shapes):
+    """A compound holding several separate shapes (an assembly-like multi-body file)."""
+    result, builder = TopoDS_Compound(), BRep_Builder()
+    builder.MakeCompound(result)
+    offset = 0.0
+    for shape in shapes:
+        moved = BRepBuilderAPI_Transform(shape, _translation(offset, 0, 0), True).Shape()
+        builder.Add(result, moved)
+        offset += 200.0
+    return result
+
+
 def two_boxes():
     """A compound of two separate solids."""
     compound, builder = TopoDS_Compound(), BRep_Builder()

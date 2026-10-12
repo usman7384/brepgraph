@@ -15,7 +15,7 @@ from .errors import (
     UnsupportedShapeError,
 )
 from .graph import SCHEMA_VERSION, BrepGraph
-from .pipeline import build_graph, load
+from .pipeline import build_graph, load, load_all
 from .registry import (
     EDGE_FEATURES,
     NODE_FEATURES,
@@ -45,6 +45,7 @@ __all__ = [
     "build_graph",
     "edge_feature",
     "load",
+    "load_all",
     "node_feature",
     "pair_feature",
     "presets",
