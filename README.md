@@ -64,6 +64,24 @@ for path in files:
         print(path.name, "skipped:", exc)
 ```
 
+### Datasets and multi-body files
+
+```python
+graphs = bg.load_all("assembly.step")          # one graph per solid; meta["solid_index"] says which
+
+results = bg.load_many(paths, workers=8)       # parallel worker processes, results in input order
+ok = [r.graphs[0] for r in results if r.ok]    # failed files carry r.error instead of raising
+```
+
+```bash
+brepgraph batch data/ -o graphs/ --workers 8 --all-solids   # mirrors folders, writes graphs/report.json
+```
+
+Worker processes are used because OpenCASCADE is not thread-safe. The default is `min(CPUs, 8)` workers; each one
+holds a full OpenCASCADE runtime (a few hundred MB), so lower `workers` on machines with little free memory. If
+OpenCASCADE crashes on a corrupt file, only that file is reported as failed; the rest of the batch continues. Custom features must live in an importable
+module to be visible to workers (in a notebook, use `workers=1`).
+
 ## Features
 
 Node, edge and pair features are stored as separate named arrays (`g.node_feats`, `g.edge_feats`,
@@ -86,7 +104,10 @@ The `brepmfr` preset follows Zhang et al., *BrepMFR*, CAGD 111 (2024): 5x5 grids
 `num_loops` and `num_adjacent_faces`, and face-pair matrices `shortest_path` [F, F], `d2` and `a3`
 [F, F, 64] (frequencies; rows sum to 1). The paper does not say how the three A3 points are drawn from two
 faces; the choice made here is documented in `src/brepgraph/features/pair.py`. Pair features cost O(F^2) in
-time and memory, so they are opt-in.
+time and memory, so they are opt-in: as float32 one `[F, F, 64]` histogram takes about 200 MB at 900 faces, and
+`d2` + `a3` take about two minutes for a 900-face part.
+`("d2", {"dtype": "uint16"})` stores the paper's exact counts and `"float16"` stores frequencies, both at half the
+memory.
 
 - Complete reference (generated from the registry): [docs/features.md](docs/features.md)
 - Graph layout and conventions (normals, mask, seam edges, ordering, units): [docs/schema.md](docs/schema.md)
@@ -111,15 +132,17 @@ save with `include_source_path=True`.
 
 ## Known limitations
 
-- One solid per file. Assemblies, multi-body files, open shells and non-manifold edges raise
-  `UnsupportedShapeError`.
+- `bg.load` accepts exactly one solid; use `bg.load_all` (CLI `--all-solids`) for assemblies and multi-body
+  files. Open shells and non-manifold edges raise `UnsupportedShapeError`.
 - Seam and degenerated edges are dropped (a sphere is 1 face and 0 edges). This is not configurable yet.
 - Units are whatever OCCT produces (millimetres for STEP); nothing is rescaled unless `normalize=True`.
-- Speed: every sample is a Python-to-C++ call. Expect roughly 30 ms per face with the default 10x10 grid.
+- Speed: every sample is a Python-to-C++ call, roughly 20-25 ms per face per process with the default 10x10
+  grid. `load_many` / `brepgraph batch` use all CPU cores.
+- OpenCASCADE has global state: parallelise with processes (`load_many`), not threads.
 - Face and edge order is deterministic for a given file and OCP version, but may differ between OCP versions.
 - A face graph can be disconnected (for example a solid with an internal cavity); unreachable pairs get
   `shortest_path = -1`.
-- Not included: coedge graphs, an on-disk cache, batch processing, splitting multi-solid files.
+- Not included: coedge graphs, an on-disk cache, per-file timeouts (a file that hangs blocks its worker).
 - The DGL adapter was tested against a stub of the DGL API because no native DGL build was available on the
   development machine; run `pytest tests/test_v02.py` where `dgl` imports to exercise the real thing.
 

@@ -11,8 +11,8 @@ arrays only; no OCP handles are ever serialised.
 | `edge_index` | [2, E] | int64 | Face ids joined by each edge, `src < dst`, stored once |
 | `node_feats` | name -> [F, ...] | float32 / int64 | Per-face features |
 | `edge_feats` | name -> [E, ...] | float32 / int64 | Per-edge features; row i belongs to column i of `edge_index` |
-| `pair_feats` | name -> [F, F, ...] | float32 / int64 | Optional (1.1): per face-pair features, symmetric, entry [i, j] describes faces i and j |
-| `meta` | dict | JSON | Source name, bbox, feature names/versions/params, dropped-edge counts, library + OCP version, healing/normalise flags. `source_path` (absolute input path) exists in memory but is not written to archives unless `save(..., include_source_path=True)` |
+| `pair_feats` | name -> [F, F, ...] | float32 / float16 / uint16 / int64 | Optional (1.1): per face-pair features, symmetric, entry [i, j] describes faces i and j |
+| `meta` | dict | JSON | Source name, bbox, feature names/versions/params, dropped-edge counts, library + OCP version, healing/normalise flags; `solid_index` / `num_solids` for graphs made by `load_all`. `source_path` (absolute input path) exists in memory but is not written to archives unless `save(..., include_source_path=True)` |
 
 Default features and their shapes are in [features.md](features.md) (generated from the registry).
 

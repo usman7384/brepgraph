@@ -6,6 +6,16 @@ and the project uses [Semantic Versioning](https://semver.org/). The graph layou
 
 ## [Unreleased]
 
+### Added
+- `bg.load_all(path)`: one graph per solid for assemblies and multi-body files, with `solid_index` /
+  `num_solids` in `meta` and `errors="skip"` to leave out a failing solid. CLI: `convert --all-solids`.
+  `bg.load` still requires a single solid and now points to `load_all`.
+- `bg.load_many(paths, workers=N)`: parallel loading in worker processes, one `LoadResult` per file, failures
+  reported instead of raised; a file that crashes OpenCASCADE is isolated and reported without losing the
+  batch. Workers run BLAS / OpenMP single-threaded and default to `min(CPUs, 8)`. CLI:
+  `brepgraph batch INPUTS -o OUT` with a `report.json`.
+- `dtype` parameter for the `d2` / `a3` pair histograms: `"float16"` or exact `"uint16"` counts halve memory.
+
 ## [0.2.0] - 2026-10-12
 
 ### Added
