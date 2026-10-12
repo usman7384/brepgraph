@@ -48,3 +48,15 @@ def uv_grid(ctx, i, size):
                 state = clf.Perform(gp_Pnt2d(float(u), float(v)))
                 out[6, a, b] = 1.0 if state in (TopAbs_IN, TopAbs_ON) else 0.0
     return out
+
+
+@node_feature("num_loops", dtype="int64", shape=())
+def num_loops(ctx, i):
+    """Number of boundary loops (wires) of the face; a face with holes has more than one."""
+    return np.int64(ctx.num_wires(i))
+
+
+@node_feature("num_adjacent_faces", dtype="int64", shape=())
+def num_adjacent_faces(ctx, i):
+    """Number of distinct faces sharing a retained edge with this face."""
+    return np.int64(len(ctx.neighbors(i)))

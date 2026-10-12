@@ -1,3 +1,3 @@
 """Built-in features. Importing this package registers them."""
 
-from . import edge, face  # noqa: F401
+from . import edge, face, pair  # noqa: F401
