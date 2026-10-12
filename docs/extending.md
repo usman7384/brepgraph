@@ -33,3 +33,9 @@ g = bg.load("part.step", fs)
 - Registering a name twice raises `ValueError`. Avoid names containing `face` or `index` if you use the
   PyG adapter (PyG would batch them along the wrong dimension).
 - Run `python scripts/gen_feature_docs.py` to refresh `docs/features.md` for the built-in features.
+
+## Face-pair features
+
+`@bg.pair_feature(name, dtype=..., shape=..., defaults=...)` registers a function `(ctx, **params)` that returns
+the whole `[F, F, *shape]` array at once (bulk computation is much faster than per-pair calls). Use
+`ctx.triangles(i)` for tessellation-based sampling and `ctx.neighbors(i)` for adjacency; see `features/pair.py`.

@@ -1,4 +1,4 @@
-# Graph schema (version 1.0.0)
+# Graph schema (version 1.1.0)
 
 A face-adjacency graph: one node per face, one graph edge per shared B-rep edge. Plain NumPy
 arrays only; no OCP handles are ever serialised.
@@ -11,6 +11,7 @@ arrays only; no OCP handles are ever serialised.
 | `edge_index` | [2, E] | int64 | Face ids joined by each edge, `src < dst`, stored once |
 | `node_feats` | name -> [F, ...] | float32 / int64 | Per-face features |
 | `edge_feats` | name -> [E, ...] | float32 / int64 | Per-edge features; row i belongs to column i of `edge_index` |
+| `pair_feats` | name -> [F, F, ...] | float32 / int64 | Optional (1.1): per face-pair features, symmetric, entry [i, j] describes faces i and j |
 | `meta` | dict | JSON | Source name, bbox, feature names/versions/params, dropped-edge counts, library + OCP version, healing/normalise flags |
 
 Default features and their shapes are in [features.md](features.md) (generated from the registry).
@@ -40,3 +41,8 @@ Default features and their shapes are in [features.md](features.md) (generated f
 - **Units**: whatever OCCT's reader produces (millimetres for STEP). No silent rescaling;
   `normalize=True` centres the bounding box on the origin and scales the longest side to 1.
 - Categorical features are stored as integer indices; one-hot is a user-side transform.
+
+## Changes
+
+- **1.1.0**: added optional `pair_feats` (`pair/<name>` keys in the `.npz`). Archives from 1.0 still load.
+- `meta["source_path"]` (resolved input path, `None` for in-memory shapes) is used by `bg.viz` to re-load the part.
