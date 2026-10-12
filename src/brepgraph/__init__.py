@@ -4,6 +4,7 @@ __version__ = "0.2.0"
 
 from . import features as _features  # noqa: F401  (registers the built-in features)
 from . import presets, viz
+from .batch import LoadResult, load_many
 from .errors import (
     BrepGraphError,
     FeatureError,
@@ -37,6 +38,7 @@ __all__ = [
     "FeatureSet",
     "FileReadError",
     "InvalidSolidError",
+    "LoadResult",
     "MissingExtraError",
     "SchemaVersionError",
     "UnknownFeatureError",
@@ -46,6 +48,7 @@ __all__ = [
     "edge_feature",
     "load",
     "load_all",
+    "load_many",
     "node_feature",
     "pair_feature",
     "presets",

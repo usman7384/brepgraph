@@ -11,15 +11,8 @@ from . import __version__, presets
 from .errors import BrepGraphError
 
 
-def solid_output_path(output: str | Path, solid_index: int, num_solids: int) -> Path:
-    """``part.npz`` for a single-solid file, ``part.solid<k>.npz`` for solid ``k`` of several."""
-    output = Path(output)
-    if num_solids == 1:
-        return output
-    return output.with_name(f"{output.stem}.solid{solid_index}{output.suffix}")
-
-
 def _convert(args) -> None:
+    from .batch import solid_output_path
     from .pipeline import load, load_all
 
     options = dict(
@@ -52,6 +45,53 @@ def _info(args) -> None:
     for title, feats in (("node", g.node_feats), ("edge", g.edge_feats), ("pair", g.pair_feats)):
         for name, arr in feats.items():
             print(f"  {title:4s} {name:15s} {str(tuple(arr.shape)):18s} {arr.dtype}")
+
+
+def _batch(args) -> int:
+    import json
+
+    from .batch import convert_one, find_cad_files, run_parallel
+
+    files = find_cad_files(args.inputs)
+    if not files:
+        raise BrepGraphError("no .step/.stp/.iges/.igs/.brep files found in the inputs")
+    out_dir = Path(args.output)
+    targets = [out_dir / rel.with_suffix(".npz") for _, rel in files]
+    duplicates = {str(t) for t in targets if targets.count(t) > 1}
+    if duplicates:
+        raise BrepGraphError(f"several inputs map to the same output file: {sorted(duplicates)[:3]}")
+    options = dict(
+        features=presets.get(args.preset),
+        grid_size=args.grid_size,
+        heal=not args.no_heal,
+        unify_faces=args.unify_faces,
+        normalize=args.normalize,
+        all_solids=args.all_solids,
+    )
+    tasks = [
+        (str(f), str(t), options, args.embed_source_path) for (f, _), t in zip(files, targets, strict=True)
+    ]
+
+    def progress(done: int, total: int) -> None:
+        if sys.stderr.isatty():
+            end = "" if done < total else "\n"
+            print(f"\r{done}/{total}", end=end, file=sys.stderr, flush=True)
+
+    rows = run_parallel(
+        convert_one,
+        tasks,
+        error_result=lambda task, message: {"source": task[0], "ok": False, "outputs": [], "error": message},
+        workers=args.workers,
+        progress=progress,
+    )
+    out_dir.mkdir(parents=True, exist_ok=True)
+    report = out_dir / "report.json"
+    report.write_text(json.dumps(rows, indent=2), encoding="utf-8")
+    ok = [r for r in rows if r["ok"]]
+    graphs = sum(len(r["outputs"]) for r in ok)
+    failed = len(rows) - len(ok)
+    print(f"{len(rows)} files: {len(ok)} converted ({graphs} graphs), {failed} failed; report: {report}")
+    return 0 if len(ok) == len(rows) else 1
 
 
 def _view(args) -> None:
@@ -102,6 +142,19 @@ def main(argv: list[str] | None = None) -> int:
     i.add_argument("input")
     i.set_defaults(func=_info)
 
+    b = sub.add_parser("batch", help="convert many files (or folders) in parallel worker processes")
+    b.add_argument("inputs", nargs="+", help="CAD files and/or folders (searched recursively)")
+    b.add_argument("-o", "--output", required=True, help="output folder; the input folder layout is mirrored")
+    b.add_argument("--workers", type=int, default=None, help="worker processes (default: all CPUs)")
+    b.add_argument("--preset", default="uvnet", choices=presets.names())
+    b.add_argument("--grid-size", type=int, default=None)
+    b.add_argument("--all-solids", action="store_true", help="one graph per solid (OUTPUT.solid<k>.npz)")
+    b.add_argument("--normalize", action="store_true")
+    b.add_argument("--unify-faces", action="store_true")
+    b.add_argument("--no-heal", action="store_true")
+    b.add_argument("--embed-source-path", action="store_true")
+    b.set_defaults(func=_batch)
+
     v = sub.add_parser("view", help="write an interactive HTML view (needs the viz extra)")
     v.add_argument("input")
     v.add_argument("--color-by", default="surface_type", help="node feature, or name:index")
@@ -118,13 +171,13 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     try:
-        args.func(args)
+        code = args.func(args)
     except BrepGraphError as exc:
         if args.debug:
             traceback.print_exc()
         print(f"brepgraph: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 1
-    return 0
+    return code or 0
 
 
 if __name__ == "__main__":
