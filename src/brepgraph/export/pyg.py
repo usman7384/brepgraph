@@ -25,7 +25,12 @@ def _flat(torch, feats: dict, names: Sequence[str], n: int, what: str):
     return torch.cat(parts, dim=1)
 
 
-def to_pyg(graph, x: Sequence[str] | None = None, edge_attr: Sequence[str] | None = None):
+def to_pyg(
+    graph,
+    x: Sequence[str] | None = None,
+    edge_attr: Sequence[str] | None = None,
+    pair_feats: Sequence[str] = (),
+):
     """Return a ``torch_geometric.data.Data``.
 
     Every B-rep edge becomes two directed edges (``cat([ei, ei.flip(0)])``) and every edge feature
@@ -34,6 +39,8 @@ def to_pyg(graph, x: Sequence[str] | None = None, edge_attr: Sequence[str] | Non
     features into ``data.x`` / ``data.edge_attr``. Avoid feature names containing ``face`` or
     ``index``: PyG's collation would concatenate them along the last dimension.
 
+    Dense face-pair features (``[F, F, ...]``) are attached only when named in ``pair_feats``. PyG
+    cannot batch graphs of different sizes with them out of the box; pad them in a custom collate.
     """
     try:
         import torch
@@ -54,6 +61,10 @@ def to_pyg(graph, x: Sequence[str] | None = None, edge_attr: Sequence[str] | Non
     for name, arr in graph.edge_feats.items():
         t = _tensor(torch, arr)
         setattr(data, name, torch.cat([t, t], dim=0))
+    for name in pair_feats:
+        if name not in graph.pair_feats:
+            raise BrepGraphError(f"pair feature '{name}' not in graph; have {sorted(graph.pair_feats)}")
+        setattr(data, name, _tensor(torch, graph.pair_feats[name]))
     if x:
         data.x = _flat(torch, graph.node_feats, x, graph.num_faces, "node")
     if edge_attr:
