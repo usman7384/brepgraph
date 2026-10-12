@@ -1,0 +1,97 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "brepgraph"
+dynamic = ["version"]
+description = "Turn B-rep CAD files (STEP) into ML-ready face-adjacency graphs. pip-installable, no conda."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Muhammad Usman Altaf" }]
+keywords = ["cad", "b-rep", "step", "graph", "machine-learning", "uv-net", "brepmfr", "opencascade"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Typing :: Typed",
+]
+# OCP 7.9 is the newest line published for Python 3.10; 8.x needs Python >= 3.11.
+dependencies = ["numpy>=1.23", "cadquery-ocp>=7.9,<9"]
+
+[project.optional-dependencies]
+pyg = ["torch", "torch_geometric"]
+dgl = ["torch", "dgl"]
+viz = ["plotly>=5"]
+dev = [
+    "pytest>=7",
+    "pytest-cov",
+    "ruff",
+    "mypy",
+    "build",
+    "twine",
+    "plotly>=5",
+]
+
+[project.urls]
+Homepage = "https://github.com/usman7384/brepgraph"
+Documentation = "https://github.com/usman7384/brepgraph#readme"
+Issues = "https://github.com/usman7384/brepgraph/issues"
+Changelog = "https://github.com/usman7384/brepgraph/blob/main/CHANGELOG.md"
+
+[project.scripts]
+brepgraph = "brepgraph.cli:main"
+
+[tool.hatch.version]
+path = "src/brepgraph/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/brepgraph"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "docs", "README.md", "LICENSE", "CHANGELOG.md", "CITATION.cff"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+markers = [
+    "slow: slower tests (large generated parts)",
+    "data: tests that need files in tests/data",
+]
+addopts = "-m 'not slow'"
+
+[tool.coverage.run]
+source = ["brepgraph"]
+
+[tool.coverage.report]
+exclude_also = ["if __name__ == .__main__.:"]
+
+[tool.ruff]
+line-length = 110
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/brepgraph/features/*.py" = ["E501"]  # one-line docstrings feed docs/features.md
+"src/brepgraph/viz/*.py" = ["E501"]
+"tests/*.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src"]
+warn_unused_ignores = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["OCP.*", "plotly.*", "torch.*", "torch_geometric.*", "dgl.*"]
+ignore_missing_imports = true
