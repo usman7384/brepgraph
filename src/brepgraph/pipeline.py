@@ -35,6 +35,22 @@ def _compute(spec: FeatureSpec, ctx: Context, n: int, params: dict[str, Any]) ->
     return out
 
 
+def _compute_pair(spec: FeatureSpec, ctx: Context, params: dict[str, Any]) -> np.ndarray:
+    n = ctx.num_faces
+    expected = (n, n, *spec.expected_shape(params))
+    try:
+        value = np.asarray(spec.fn(ctx, **params))
+    except BrepGraphError:
+        raise
+    except Exception as exc:
+        raise FeatureError(spec.name, None, f"{type(exc).__name__}: {exc}", "pair") from exc
+    if value.shape != expected:
+        raise FeatureError(spec.name, None, f"returned shape {value.shape}, declared {expected}", "pair")
+    if value.dtype.kind == "f" and not np.all(np.isfinite(value)):
+        raise FeatureError(spec.name, None, "returned NaN or infinite values", "pair")
+    return value.astype(spec.dtype, copy=False)
+
+
 def build_graph(
     solid,
     feature_set: FeatureSet,
@@ -44,10 +60,11 @@ def build_graph(
 ) -> BrepGraph:
     topo = build_topology(solid)
     ctx = Context(topo)
-    node_specs, edge_specs = feature_set.resolve(grid_size)
+    node_specs, edge_specs, pair_specs = feature_set.resolve(grid_size)
 
     node_feats = {s.name: _compute(s, ctx, topo.num_faces, p) for s, p in node_specs}
     edge_feats = {s.name: _compute(s, ctx, topo.num_edges, p) for s, p in edge_specs}
+    pair_feats = {s.name: _compute_pair(s, ctx, p) for s, p in pair_specs}
 
     meta: dict[str, Any] = dict(source_info or {})
     meta.update(
@@ -56,6 +73,7 @@ def build_graph(
             "features": {
                 "node": [{"name": s.name, "version": s.version, "params": p} for s, p in node_specs],
                 "edge": [{"name": s.name, "version": s.version, "params": p} for s, p in edge_specs],
+                "pair": [{"name": s.name, "version": s.version, "params": p} for s, p in pair_specs],
             },
             "dropped_edges": {"seam": topo.n_seam, "degenerated": topo.n_degenerated},
             "library_version": __version__,
@@ -68,6 +86,7 @@ def build_graph(
         edge_index=topo.edge_index,
         node_feats=node_feats,
         edge_feats=edge_feats,
+        pair_feats=pair_feats,
         meta=meta,
     )
     graph.validate()

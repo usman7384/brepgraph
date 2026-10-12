@@ -11,7 +11,7 @@ import numpy as np
 
 from .errors import BrepGraphError, SchemaVersionError
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "1.1.0"  # 1.1: optional pair_feats; 1.0 archives still load
 
 
 @dataclass(eq=False)
@@ -20,7 +20,9 @@ class BrepGraph:
 
     ``edge_index`` is ``[2, E]`` int64 with one column per retained B-rep edge, ``src < dst``;
     parallel edges are kept. ``node_feats[name]`` is ``[F, ...]`` and ``edge_feats[name]`` is
-    ``[E, ...]`` with row ``i`` belonging to column ``i`` of ``edge_index``.
+    ``[E, ...]`` with row ``i`` belonging to column ``i`` of ``edge_index``. ``pair_feats[name]`` is
+    ``[F, F, ...]`` (entry ``[i, j]`` describes the face pair ``(i, j)``); it is empty unless a
+    feature set asks for pair features.
     """
 
     num_faces: int
@@ -28,6 +30,7 @@ class BrepGraph:
     edge_index: np.ndarray
     node_feats: dict[str, np.ndarray]
     edge_feats: dict[str, np.ndarray]
+    pair_feats: dict[str, np.ndarray] = field(default_factory=dict)
     meta: dict[str, Any] = field(default_factory=dict)
     schema_version: str = SCHEMA_VERSION
 
@@ -37,6 +40,9 @@ class BrepGraph:
             raise BrepGraphError(f"edge_index must be int64 [2, {self.num_edges}], got {ei.shape}")
         if self.num_edges and (ei.min() < 0 or ei.max() >= self.num_faces or np.any(ei[0] >= ei[1])):
             raise BrepGraphError("edge_index must satisfy 0 <= src < dst < num_faces")
+        for name, arr in self.pair_feats.items():
+            if arr.shape[:2] != (self.num_faces, self.num_faces):
+                raise BrepGraphError(f"pair feature '{name}' has shape {arr.shape}, want [F, F, ...]")
         for kind, feats, n in (
             ("node", self.node_feats, self.num_faces),
             ("edge", self.edge_feats, self.num_edges),
@@ -53,14 +59,21 @@ class BrepGraph:
             "edge_index": self.edge_index,
             "node_feats": dict(self.node_feats),
             "edge_feats": dict(self.edge_feats),
+            "pair_feats": dict(self.pair_feats),
             "meta": self.meta,
         }
 
-    def to_pyg(self, x=None, edge_attr=None):
+    def to_pyg(self, x=None, edge_attr=None, pair_feats=()):
         """PyTorch Geometric ``Data`` (needs the ``pyg`` extra). See :func:`brepgraph.export.pyg.to_pyg`."""
         from .export.pyg import to_pyg
 
-        return to_pyg(self, x=x, edge_attr=edge_attr)
+        return to_pyg(self, x=x, edge_attr=edge_attr, pair_feats=pair_feats)
+
+    def to_dgl(self):
+        """DGL graph (needs the ``dgl`` extra). See :func:`brepgraph.export.dgl.to_dgl`."""
+        from .export.dgl import to_dgl
+
+        return to_dgl(self)
 
     def save(self, path: str | os.PathLike[str]) -> None:
         """Write a compressed ``.npz`` archive (loadable with ``allow_pickle=False``)."""
@@ -71,6 +84,7 @@ class BrepGraph:
         }
         arrays.update({f"node/{k}": v for k, v in self.node_feats.items()})
         arrays.update({f"edge/{k}": v for k, v in self.edge_feats.items()})
+        arrays.update({f"pair/{k}": v for k, v in self.pair_feats.items()})
         with open(path, "wb") as fh:  # file object: numpy must not append '.npz' to the name
             np.savez_compressed(fh, **arrays)  # type: ignore[arg-type]  # numpy stubs type **kwds as bool
 
@@ -84,6 +98,7 @@ class BrepGraph:
                 )
             node = {k[5:]: z[k] for k in z.files if k.startswith("node/")}
             edge = {k[5:]: z[k] for k in z.files if k.startswith("edge/")}
+            pair = {k[5:]: z[k] for k in z.files if k.startswith("pair/")}
             edge_index = z["edge_index"].astype(np.int64, copy=False)
             meta = json.loads(str(z["meta"]))
         g = cls(
@@ -92,6 +107,7 @@ class BrepGraph:
             edge_index=edge_index,
             node_feats=node,
             edge_feats=edge,
+            pair_feats=pair,
             meta=meta,
             schema_version=version,
         )
@@ -106,5 +122,7 @@ class BrepGraph:
         return (
             f"BrepGraph(source={src!r}, faces={self.num_faces}, edges={self.num_edges}, "
             f"schema={self.schema_version}\n  node_feats:{rows(self.node_feats)}"
-            f"\n  edge_feats:{rows(self.edge_feats)}\n)"
+            f"\n  edge_feats:{rows(self.edge_feats)}"
+            + (f"\n  pair_feats:{rows(self.pair_feats)}" if self.pair_feats else "")
+            + "\n)"
         )

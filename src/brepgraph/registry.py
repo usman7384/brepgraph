@@ -3,6 +3,10 @@
 A feature function takes ``(ctx, index, **params)`` and returns a NumPy array of the declared
 shape for ONE face (``@node_feature``) or ONE retained edge (``@edge_feature``). The pipeline
 stacks the results into ``[F, ...]`` / ``[E, ...]`` arrays and checks shape, dtype and finiteness.
+
+``@pair_feature`` functions are different: they take ``(ctx, **params)`` and return the whole
+``[F, F, ...]`` array at once (pairwise quantities are far cheaper to compute in bulk). The declared
+``shape`` is the trailing shape after the two face axes.
 """
 
 from __future__ import annotations
@@ -38,6 +42,8 @@ class FeatureSpec:
 
 NODE_FEATURES: dict[str, FeatureSpec] = {}
 EDGE_FEATURES: dict[str, FeatureSpec] = {}
+PAIR_FEATURES: dict[str, FeatureSpec] = {}
+_TABLES = {"node": NODE_FEATURES, "edge": EDGE_FEATURES, "pair": PAIR_FEATURES}
 
 
 def _register(kind: str, table: dict, name, dtype, shape, version, defaults):
@@ -69,8 +75,13 @@ def edge_feature(name: str, *, dtype: str, shape: Shape, version: str = "1", def
     return _register("edge", EDGE_FEATURES, name, dtype, shape, version, defaults)
 
 
+def pair_feature(name: str, *, dtype: str, shape: Shape, version: str = "1", defaults=None):
+    """Register a face-pair feature: ``fn(ctx, **params) -> [F, F, *shape]``."""
+    return _register("pair", PAIR_FEATURES, name, dtype, shape, version, defaults)
+
+
 def get_spec(kind: str, name: str) -> FeatureSpec:
-    table = NODE_FEATURES if kind == "node" else EDGE_FEATURES
+    table = _TABLES[kind]
     try:
         return table[name]
     except KeyError:
@@ -102,11 +113,13 @@ class FeatureSet:
 
     nodes: Sequence[Any] = ()
     edges: Sequence[Any] = ()
+    pairs: Sequence[Any] = ()
 
     def __post_init__(self):
         object.__setattr__(self, "nodes", _norm(self.nodes))
         object.__setattr__(self, "edges", _norm(self.edges))
-        for kind, entries in (("node", self.nodes), ("edge", self.edges)):
+        object.__setattr__(self, "pairs", _norm(self.pairs))
+        for kind, entries in (("node", self.nodes), ("edge", self.edges), ("pair", self.pairs)):
             names = [n for n, _ in entries]
             if len(set(names)) != len(names):
                 raise ValueError(f"duplicate {kind} feature in feature set: {names}")
@@ -114,13 +127,13 @@ class FeatureSet:
                 get_spec(kind, n)  # validate eagerly
 
     def resolve(self, grid_size: int | None = None):
-        """Return ``(nodes, edges)``, each ``[(spec, params), ...]``, with defaults merged in.
+        """Return ``(nodes, edges, pairs)``, each ``[(spec, params), ...]``, defaults merged in.
 
         ``grid_size`` overrides the ``size`` parameter of every feature that has one, unless that
         feature set it explicitly.
         """
         resolved = []
-        for kind, entries in (("node", self.nodes), ("edge", self.edges)):
+        for kind, entries in (("node", self.nodes), ("edge", self.edges), ("pair", self.pairs)):
             rows = []
             for name, explicit in entries:
                 spec = get_spec(kind, name)
@@ -136,7 +149,7 @@ class FeatureSet:
                 params.update(explicit)
                 rows.append((spec, params))
             resolved.append(rows)
-        return resolved[0], resolved[1]
+        return resolved[0], resolved[1], resolved[2]
 
 
 def describe() -> str:
@@ -145,6 +158,7 @@ def describe() -> str:
     for title, table in (
         ("Face (node) features", NODE_FEATURES),
         ("Edge features", EDGE_FEATURES),
+        ("Face-pair features (stored as [F, F, ...])", PAIR_FEATURES),
     ):
         lines += [
             f"## {title}",

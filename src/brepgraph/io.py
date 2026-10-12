@@ -133,14 +133,15 @@ def load_solid(
     Returns ``(solid, info)`` where ``info`` is a JSON-friendly dict for ``meta``.
     """
     if isinstance(source, TopoDS_Shape):
-        shape, name = source, None
+        shape, name, full = source, None, None
     else:
-        shape, name = read_shape(source), Path(source).name
+        shape, name, full = read_shape(source), Path(source).name, str(Path(source).resolve())
     solid, healed = validate_and_heal(extract_solid(shape), heal=heal, unify_faces=unify_faces)
     if normalize:
         solid = center_and_scale(solid)
     return solid, {
         "source": name,
+        "source_path": full,
         "healed": healed,
         "unify_faces": unify_faces,
         "normalize": normalize,

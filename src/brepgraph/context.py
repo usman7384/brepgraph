@@ -13,10 +13,11 @@ from OCP.BRepTools import BRepTools
 from OCP.gp import gp_Pnt, gp_Vec
 from OCP.GProp import GProp_GProps
 from OCP.IntTools import IntTools_FClass2d
-from OCP.TopAbs import TopAbs_EDGE, TopAbs_REVERSED
+from OCP.TopAbs import TopAbs_EDGE, TopAbs_REVERSED, TopAbs_WIRE
 from OCP.TopExp import TopExp_Explorer
 
-from .topology import Topology
+from . import meshing
+from .topology import Topology, bounding_box
 
 #: nudge fractions (towards the parametric centre) tried at singular points (poles, apexes)
 _NUDGES = (0.0, 1e-6, 1e-4, 1e-2)
@@ -39,6 +40,10 @@ class Context:
         self._face_edge_sign: dict[int, dict[int, int]] = {}
         self._dihedral: dict[int, tuple[float, float]] = {}
         self._jac: dict[int, float] = {}
+        self._tris: dict[int, tuple[np.ndarray, np.ndarray] | None] = {}
+        self._meshed = False
+        self._neighbors: list[set[int]] | None = None
+        self._diag: float | None = None
 
     @property
     def num_faces(self) -> int:
@@ -47,6 +52,40 @@ class Context:
     @property
     def num_edges(self) -> int:
         return self.topology.num_edges
+
+    @property
+    def diagonal(self) -> float:
+        """Length of the whole solid's bounding-box diagonal."""
+        if self._diag is None:
+            b = bounding_box(self.topology.solid)
+            self._diag = float(np.linalg.norm(np.array(b[3:]) - np.array(b[:3])))
+        return self._diag
+
+    def neighbors(self, i: int) -> set[int]:
+        """Ids of the faces sharing a retained edge with face ``i``."""
+        if self._neighbors is None:
+            self._neighbors = [set() for _ in range(self.num_faces)]
+            for a, b in self.topology.edge_index.T:
+                self._neighbors[int(a)].add(int(b))
+                self._neighbors[int(b)].add(int(a))
+        return self._neighbors[i]
+
+    def num_wires(self, i: int) -> int:
+        """Number of boundary loops of face ``i``."""
+        exp, n = TopExp_Explorer(self.face(i), TopAbs_WIRE), 0
+        while exp.More():
+            n += 1
+            exp.Next()
+        return n
+
+    def triangles(self, i: int) -> tuple[np.ndarray, np.ndarray] | None:
+        """Cached ``(vertices, triangles)`` of face ``i`` (meshes the solid on first use) or ``None``."""
+        if not self._meshed:
+            meshing.mesh_solid(self.topology.solid)
+            self._meshed = True
+        if i not in self._tris:
+            self._tris[i] = meshing.face_triangulation(self.face(i))
+        return self._tris[i]
 
     def face(self, i: int):
         return self.topology.faces[i]
