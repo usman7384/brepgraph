@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+from OCP.BRepTools import BRepTools
 
 from .. import io, meshing
 from ..context import Context
@@ -66,6 +67,7 @@ def tessellate(topology, linear_ratio: float = 0.002, angular: float = 0.5):
         tri_face.append(np.full(len(t), fid, dtype=np.int64))
         vert_face.append(np.full(len(v), fid, dtype=np.int64))
         offset += len(v)
+    BRepTools.Clean_s(topology.solid)  # do not leave the mesh on a caller-supplied shape
     if not verts:
         raise BrepGraphError("tessellation produced no triangles")
     return np.vstack(verts), np.vstack(tris), np.concatenate(tri_face), np.concatenate(vert_face)

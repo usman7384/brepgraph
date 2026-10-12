@@ -87,6 +87,17 @@ class Context:
             self._tris[i] = meshing.face_triangulation(self.face(i))
         return self._tris[i]
 
+    def release_mesh(self) -> None:
+        """Remove the triangulation that :meth:`triangles` attached to the solid.
+
+        Meshing mutates the OCP shape in place, which would otherwise leak into a shape the caller
+        passed to ``load``.
+        """
+        if self._meshed:
+            BRepTools.Clean_s(self.topology.solid)
+            self._meshed = False
+            self._tris.clear()
+
     def face(self, i: int):
         return self.topology.faces[i]
 

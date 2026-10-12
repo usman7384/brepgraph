@@ -142,6 +142,20 @@ def open_shell():
     return shell
 
 
+def has_triangulation(shape) -> bool:
+    """True if any face of ``shape`` carries a mesh."""
+    from OCP.BRep import BRep_Tool
+    from OCP.TopLoc import TopLoc_Location
+
+    faces = TopExp_Explorer(shape, TopAbs_FACE)
+    while faces.More():
+        face = getattr(TopoDS, "Face_s", None) or TopoDS.Face
+        if BRep_Tool.Triangulation_s(face(faces.Current()), TopLoc_Location()) is not None:
+            return True
+        faces.Next()
+    return False
+
+
 def write_step(shape, path: Path) -> Path:
     writer = STEPControl_Writer()
     writer.Transfer(shape, STEPControl_AsIs)

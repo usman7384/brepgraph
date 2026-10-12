@@ -62,9 +62,12 @@ def build_graph(
     ctx = Context(topo)
     node_specs, edge_specs, pair_specs = feature_set.resolve(grid_size)
 
-    node_feats = {s.name: _compute(s, ctx, topo.num_faces, p) for s, p in node_specs}
-    edge_feats = {s.name: _compute(s, ctx, topo.num_edges, p) for s, p in edge_specs}
-    pair_feats = {s.name: _compute_pair(s, ctx, p) for s, p in pair_specs}
+    try:
+        node_feats = {s.name: _compute(s, ctx, topo.num_faces, p) for s, p in node_specs}
+        edge_feats = {s.name: _compute(s, ctx, topo.num_edges, p) for s, p in edge_specs}
+        pair_feats = {s.name: _compute_pair(s, ctx, p) for s, p in pair_specs}
+    finally:
+        ctx.release_mesh()
 
     meta: dict[str, Any] = dict(source_info or {})
     meta.update(

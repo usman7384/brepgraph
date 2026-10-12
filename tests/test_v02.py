@@ -339,3 +339,29 @@ def test_cli_view_graph(step, tmp_path, plotly):
     out = tmp_path / "graph.html"
     assert cli.main(["view", str(step(F.pocket_box())), "--kind", "graph", "--out", str(out)]) == 0
     assert len(out.read_text(encoding="utf-8")) > 10_000
+
+
+# ---- no side effects on caller-supplied shapes -------------------------------------------------
+def test_load_does_not_leave_a_mesh_on_the_callers_shape():
+    shape = F.pocket_box()
+    assert not F.has_triangulation(shape)
+    bg.load(shape, "brepmfr")  # pair features tessellate internally
+    assert not F.has_triangulation(shape)
+
+
+def test_show_does_not_leave_a_mesh_on_the_callers_shape(plotly):
+    shape = F.pocket_box()
+    g = bg.load(shape)
+    bg.viz.show(g, source=shape)
+    assert not F.has_triangulation(shape)
+
+
+def test_release_mesh_clears_cached_triangles():
+    from brepgraph.context import Context
+    from brepgraph.topology import build_topology
+
+    ctx = Context(build_topology(F.box()))
+    assert ctx.triangles(0) is not None and F.has_triangulation(ctx.topology.solid)
+    ctx.release_mesh()
+    assert not F.has_triangulation(ctx.topology.solid)
+    assert ctx.triangles(0) is not None  # transparently re-meshes
