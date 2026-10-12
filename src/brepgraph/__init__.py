@@ -1,9 +1,9 @@
 """brepgraph: B-rep CAD files in, ML-ready face-adjacency graphs out."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0.dev0"
 
 from . import features as _features  # noqa: F401  (registers the built-in features)
-from . import presets
+from . import presets, viz
 from .errors import (
     BrepGraphError,
     FeatureError,
@@ -19,14 +19,17 @@ from .pipeline import build_graph, load
 from .registry import (
     EDGE_FEATURES,
     NODE_FEATURES,
+    PAIR_FEATURES,
     FeatureSet,
     edge_feature,
     node_feature,
+    pair_feature,
 )
 
 __all__ = [
     "EDGE_FEATURES",
     "NODE_FEATURES",
+    "PAIR_FEATURES",
     "SCHEMA_VERSION",
     "BrepGraph",
     "BrepGraphError",
@@ -43,5 +46,7 @@ __all__ = [
     "edge_feature",
     "load",
     "node_feature",
+    "pair_feature",
     "presets",
+    "viz",
 ]
