@@ -16,6 +16,18 @@ and the project uses [Semantic Versioning](https://semver.org/). The graph layou
   `brepgraph batch INPUTS -o OUT` with a `report.json`.
 - `dtype` parameter for the `d2` / `a3` pair histograms: `"float16"` or exact `"uint16"` counts halve memory.
 
+### Changed
+- Saved archives no longer contain `meta["source_path"]` (the absolute input path), so shared datasets do not
+  carry local directory names. Opt in with `save(..., include_source_path=True)` or
+  `convert --embed-source-path`; for an archive without it, pass `source=` to `bg.viz.show`.
+- Loading is about 25% faster (scalar arithmetic for surface normals).
+
+### Fixed
+- Graphs without node features (edge-only, pair-only or empty feature sets) can be loaded back from `.npz`:
+  archives now store `num_faces`. Archives written by 0.2.0 still load.
+- `load()` with pair features and `bg.viz.show(source=shape)` no longer leave a tessellation on a
+  caller-supplied OCP shape.
+
 ## [0.2.0] - 2026-10-12
 
 ### Added
@@ -28,9 +40,8 @@ and the project uses [Semantic Versioning](https://semver.org/). The graph layou
   convexity, optional graph overlay), `bg.viz.show_graph` (the face graph on its own, 2-D / 3-D / centroid
   layouts), `bg.viz.show_face` (UV samples, mask and normals) and `brepgraph view [--kind graph]`.
 - DGL adapter `BrepGraph.to_dgl()`; the PyG adapter can attach pair features.
-- `meta["source_path"]` records the resolved input path so the viewer can re-load the part. It is kept in
-  memory but not written to archives unless `save(..., include_source_path=True)` (CLI:
-  `convert --embed-source-path`), so shared datasets do not carry local directory names.
+- `meta["source_path"]` records the resolved input path so the viewer can re-load the part (in 0.2.0 it is
+  also written into saved archives; see the next release).
 - `examples/gnn_with_pyg.py`, `docs/using-with-gnns.md`, a demo notebook, mypy checks and coverage in CI.
 
 ## [0.1.0] - 2026-10-12

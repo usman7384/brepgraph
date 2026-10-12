@@ -44,5 +44,6 @@ Default features and their shapes are in [features.md](features.md) (generated f
 
 ## Changes
 
-- **1.1.0**: added optional `pair_feats` (`pair/<name>` keys in the `.npz`) and a `num_faces` entry. Archives from 1.0 still load.
+- **1.1.0**: added optional `pair_feats` (`pair/<name>` keys in the `.npz`). Archives from 1.0 still load.
+  From brepgraph 0.3.0 archives also store a `num_faces` entry; earlier 1.1 archives fall back to the node features.
 - `meta["source_path"]` (resolved input path, `None` for in-memory shapes) is used by `bg.viz` to re-load the part. It is left out of saved archives by default, so shared datasets do not carry local paths.
