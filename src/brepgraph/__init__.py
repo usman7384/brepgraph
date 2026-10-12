@@ -1,6 +1,6 @@
 """brepgraph: B-rep CAD files in, ML-ready face-adjacency graphs out."""
 
-__version__ = "0.3.0.dev0"
+__version__ = "0.3.0"
 
 from . import features as _features  # noqa: F401  (registers the built-in features)
 from . import presets, viz

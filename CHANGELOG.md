@@ -6,6 +6,8 @@ and the project uses [Semantic Versioning](https://semver.org/). The graph layou
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-12
+
 ### Added
 - `bg.load_all(path)`: one graph per solid for assemblies and multi-body files, with `solid_index` /
   `num_solids` in `meta` and `errors="skip"` to leave out a failing solid. CLI: `convert --all-solids`.
@@ -56,6 +58,7 @@ and the project uses [Semantic Versioning](https://semver.org/). The graph layou
   transforms and the `brepgraph convert` / `info` CLI.
 - Support for OCP 7.9 (Python 3.10) and 8.x (Python 3.11+).
 
-[Unreleased]: https://github.com/usman7384/brepgraph/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/usman7384/brepgraph/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/usman7384/brepgraph/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/usman7384/brepgraph/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/usman7384/brepgraph/releases/tag/v0.1.0
