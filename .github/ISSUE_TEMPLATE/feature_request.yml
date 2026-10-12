@@ -1,0 +1,16 @@
+name: Feature request
+description: Suggest a new feature, preset or adapter
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What would you like to be able to do?
+      description: If it comes from a paper, please link it and name the section with the definition.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Could it be a custom feature registered with `@node_feature` / `@edge_feature`?
+      description: See docs/extending.md. Features that fit the registry need no change to the core.

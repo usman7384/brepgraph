@@ -1,0 +1,25 @@
+name: Bug report
+description: Something produced a wrong, missing or crashing result
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Code or CLI command. If a specific part triggers it, say whether you can share the STEP file.
+      render: python
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Output of `python -c "import brepgraph; print(brepgraph.__version__)"`, the installed cadquery-ocp version, Python version and OS.
+    validations:
+      required: true
