@@ -12,8 +12,9 @@ _RESERVED = {"x", "y", "pos", "edge_index", "edge_attr", "batch", "ptr", "num_no
 
 
 def _tensor(torch, arr: np.ndarray):
-    t = torch.from_numpy(np.ascontiguousarray(arr))
-    return t.long() if arr.dtype.kind in "iu" else t.float()
+    if arr.dtype.kind in "iu":  # integer indices and counts (incl. uint16) become torch.long
+        return torch.from_numpy(np.ascontiguousarray(arr, dtype=np.int64))
+    return torch.from_numpy(np.ascontiguousarray(arr)).float()
 
 
 def _flat(torch, feats: dict, names: Sequence[str], n: int, what: str):

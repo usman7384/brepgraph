@@ -52,7 +52,7 @@ def test_brepmfr_preset_shapes_and_sums(graph):
     assert g.meta["features"]["pair"][1] == {
         "name": "d2",
         "version": "1",
-        "params": {"bins": 64, "samples": 512, "seed": 0},
+        "params": {"bins": 64, "samples": 512, "seed": 0, "dtype": "float32"},
     }
 
 

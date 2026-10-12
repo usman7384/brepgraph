@@ -28,7 +28,7 @@ Generated from the registry; do not edit by hand.
 | Name | Shape | dtype | Params | Version | Meaning |
 | --- | --- | --- | --- | --- | --- |
 | `shortest_path` | () | int64 | - | 1 | Number of edges on the shortest path between two faces in the face graph (0 on the diagonal, -1 if unreachable). |
-| `d2` | (64) * | float32 | bins=64, samples=512, seed=0 | 1 | D2 histogram per face pair: distance between random points on the two faces, divided by the solid's bounding-box diagonal (bins over [0, 1], rows sum to 1). |
-| `a3` | (64) * | float32 | bins=64, samples=512, seed=0 | 1 | A3 histogram per face pair: angle (divided by pi) at the middle of three random points drawn from the union of the two faces (bins over [0, 1], rows sum to 1). |
+| `d2` | (64) * | float32 * | bins=64, samples=512, seed=0, dtype=float32 | 1 | D2 histogram per face pair: distance between random points on the two faces, divided by the solid's bounding-box diagonal (bins over [0, 1]; frequencies summing to 1, or counts with dtype="uint16"). |
+| `a3` | (64) * | float32 * | bins=64, samples=512, seed=0, dtype=float32 | 1 | A3 histogram per face pair: angle (divided by pi) at the middle of three random points drawn from the union of the two faces (bins over [0, 1]; frequencies summing to 1, or counts with dtype="uint16"). |
 
-`*` shape shown for default parameters.
+`*` shape or dtype shown for default parameters.

@@ -18,13 +18,14 @@ from typing import Any
 from .errors import UnknownFeatureError
 
 Shape = tuple[int, ...] | Callable[[Mapping[str, Any]], tuple[int, ...]]
+Dtype = str | Callable[[Mapping[str, Any]], str]
 
 
 @dataclass(frozen=True)
 class FeatureSpec:
     name: str
     kind: str  # "node" | "edge"
-    dtype: str
+    dtype: Dtype
     shape: Shape
     version: str
     defaults: Mapping[str, Any]
@@ -33,6 +34,12 @@ class FeatureSpec:
 
     def expected_shape(self, params: Mapping[str, Any]) -> tuple[int, ...]:
         return tuple(self.shape(params)) if callable(self.shape) else tuple(self.shape)
+
+    def resolved_dtype(self, params: Mapping[str, Any]) -> str:
+        return self.dtype(params) if callable(self.dtype) else self.dtype
+
+    def dtype_label(self) -> str:
+        return f"{self.dtype(self.defaults)} *" if callable(self.dtype) else self.dtype
 
     def shape_label(self) -> str:
         if callable(self.shape):
@@ -65,17 +72,17 @@ def _register(kind: str, table: dict, name, dtype, shape, version, defaults):
     return deco
 
 
-def node_feature(name: str, *, dtype: str, shape: Shape, version: str = "1", defaults=None):
+def node_feature(name: str, *, dtype: Dtype, shape: Shape, version: str = "1", defaults=None):
     """Register a per-face feature."""
     return _register("node", NODE_FEATURES, name, dtype, shape, version, defaults)
 
 
-def edge_feature(name: str, *, dtype: str, shape: Shape, version: str = "1", defaults=None):
+def edge_feature(name: str, *, dtype: Dtype, shape: Shape, version: str = "1", defaults=None):
     """Register a per-edge feature."""
     return _register("edge", EDGE_FEATURES, name, dtype, shape, version, defaults)
 
 
-def pair_feature(name: str, *, dtype: str, shape: Shape, version: str = "1", defaults=None):
+def pair_feature(name: str, *, dtype: Dtype, shape: Shape, version: str = "1", defaults=None):
     """Register a face-pair feature: ``fn(ctx, **params) -> [F, F, *shape]``."""
     return _register("pair", PAIR_FEATURES, name, dtype, shape, version, defaults)
 
@@ -168,7 +175,9 @@ def describe() -> str:
         ]
         for s in table.values():
             params = ", ".join(f"{k}={v}" for k, v in s.defaults.items()) or "-"
-            lines.append(f"| `{s.name}` | {s.shape_label()} | {s.dtype} | {params} | {s.version} | {s.doc} |")
+            lines.append(
+                f"| `{s.name}` | {s.shape_label()} | {s.dtype_label()} | {params} | {s.version} | {s.doc} |"
+            )
         lines.append("")
-    lines.append("`*` shape shown for default parameters.")
+    lines.append("`*` shape or dtype shown for default parameters.")
     return "\n".join(lines) + "\n"

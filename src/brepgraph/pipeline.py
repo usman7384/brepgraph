@@ -19,7 +19,7 @@ from .topology import bounding_box, build_topology
 
 def _compute(spec: FeatureSpec, ctx: Context, n: int, params: dict[str, Any]) -> np.ndarray:
     expected = spec.expected_shape(params)
-    out = np.zeros((n, *expected), dtype=spec.dtype)
+    out = np.zeros((n, *expected), dtype=spec.resolved_dtype(params))
     kind = "face" if spec.kind == "node" else "edge"
     for i in range(n):
         try:
@@ -49,7 +49,7 @@ def _compute_pair(spec: FeatureSpec, ctx: Context, params: dict[str, Any]) -> np
         raise FeatureError(spec.name, None, f"returned shape {value.shape}, declared {expected}", "pair")
     if value.dtype.kind == "f" and not np.all(np.isfinite(value)):
         raise FeatureError(spec.name, None, "returned NaN or infinite values", "pair")
-    return value.astype(spec.dtype, copy=False)
+    return value.astype(spec.resolved_dtype(params), copy=False)
 
 
 def build_graph(
