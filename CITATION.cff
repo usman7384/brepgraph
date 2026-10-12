@@ -4,7 +4,7 @@ title: "brepgraph"
 abstract: "Turn B-rep CAD files (STEP) into ML-ready face-adjacency graphs."
 type: software
 repository-code: "https://github.com/usman7384/brepgraph"
-version: 0.1.0
+version: 0.2.0
 date-released: 2026-10-12
 license: MIT
 authors:
