@@ -169,8 +169,18 @@ def test_npz_round_trip(tmp_path):
         assert v.dtype == g2.node_feats[k].dtype
     for k, v in g.edge_feats.items():
         np.testing.assert_array_equal(v, g2.edge_feats[k])
-    assert g.meta == g2.meta
+    assert {k: v for k, v in g.meta.items() if k != "source_path"} == g2.meta
     json.dumps(g.meta)  # meta is plain JSON
+
+
+def test_archives_do_not_embed_the_local_path_by_default(step, tmp_path):
+    g = bg.load(step(F.box()))
+    assert g.meta["source_path"]  # kept in memory so the viewer works on a freshly loaded graph
+    g.save(tmp_path / "private.npz")
+    assert "source_path" not in bg.BrepGraph.load(tmp_path / "private.npz").meta
+    assert str(tmp_path) not in (tmp_path / "private.npz").read_bytes().decode("latin-1")
+    g.save(tmp_path / "keep.npz", include_source_path=True)
+    assert bg.BrepGraph.load(tmp_path / "keep.npz").meta["source_path"] == g.meta["source_path"]
 
 
 def test_zero_edge_graph_round_trips(tmp_path):
@@ -239,6 +249,14 @@ def test_cli_convert_and_info(step, tmp_path, capsys):
     assert bg.BrepGraph.load(out).node_feats["uv_grid"].shape == (6, 7, 5, 5)
     assert cli.main(["info", str(out)]) == 0
     assert "uv_grid" in capsys.readouterr().out
+
+
+def test_cli_embed_source_path_flag(step, tmp_path):
+    src, plain, kept = step(F.box()), tmp_path / "a.npz", tmp_path / "b.npz"
+    assert cli.main(["convert", str(src), str(plain)]) == 0
+    assert cli.main(["convert", str(src), str(kept), "--embed-source-path"]) == 0
+    assert "source_path" not in bg.BrepGraph.load(plain).meta
+    assert "source_path" in bg.BrepGraph.load(kept).meta
 
 
 def test_cli_error_is_one_line_exit_1(tmp_path, capsys):

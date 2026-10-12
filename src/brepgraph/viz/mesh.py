@@ -22,7 +22,8 @@ def reload_context(graph, source=None) -> Context:
         source = graph.meta.get("source_path")
         if not source:
             raise BrepGraphError(
-                "this graph has no source_path in meta (built from an in-memory shape?): pass source=..."
+                "this graph has no source_path in meta (built from an in-memory shape, or loaded from an "
+                "archive saved without it): pass source=<path or shape>"
             )
     solid, _ = io.load_solid(
         source,

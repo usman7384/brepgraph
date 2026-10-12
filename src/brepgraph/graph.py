@@ -75,13 +75,19 @@ class BrepGraph:
 
         return to_dgl(self)
 
-    def save(self, path: str | os.PathLike[str]) -> None:
-        """Write a compressed ``.npz`` archive (loadable with ``allow_pickle=False``)."""
+    def save(self, path: str | os.PathLike[str], *, include_source_path: bool = False) -> None:
+        """Write a compressed ``.npz`` archive (loadable with ``allow_pickle=False``).
+
+        ``meta["source_path"]`` (the absolute path of the input file) is left out by default so
+        shared archives do not reveal local directory names. Pass ``include_source_path=True`` to
+        keep it, which lets :mod:`brepgraph.viz` re-load the part from a loaded archive.
+        """
+        meta = {k: v for k, v in self.meta.items() if include_source_path or k != "source_path"}
         arrays: dict[str, np.ndarray] = {
             "schema_version": np.array(self.schema_version),
             "num_faces": np.array(self.num_faces),
             "edge_index": self.edge_index,
-            "meta": np.array(json.dumps(self.meta, sort_keys=True)),
+            "meta": np.array(json.dumps(meta, sort_keys=True)),
         }
         arrays.update({f"node/{k}": v for k, v in self.node_feats.items()})
         arrays.update({f"edge/{k}": v for k, v in self.edge_feats.items()})

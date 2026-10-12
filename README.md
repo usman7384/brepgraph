@@ -105,7 +105,9 @@ bg.viz.show_face(g, 12).show()                # one face's UV samples, trim mask
 ```
 
 `show` re-loads the source file recorded in the graph and checks it against the stored areas and centroids, so
-a changed face order is reported instead of silently mis-coloured.
+a changed face order is reported instead of silently mis-coloured. Archives do not store the absolute input path
+by default (it would leak local directory names); for a graph loaded from an archive pass `source=path`, or
+save with `include_source_path=True`.
 
 ## Known limitations
 

@@ -12,7 +12,7 @@ arrays only; no OCP handles are ever serialised.
 | `node_feats` | name -> [F, ...] | float32 / int64 | Per-face features |
 | `edge_feats` | name -> [E, ...] | float32 / int64 | Per-edge features; row i belongs to column i of `edge_index` |
 | `pair_feats` | name -> [F, F, ...] | float32 / int64 | Optional (1.1): per face-pair features, symmetric, entry [i, j] describes faces i and j |
-| `meta` | dict | JSON | Source name, bbox, feature names/versions/params, dropped-edge counts, library + OCP version, healing/normalise flags |
+| `meta` | dict | JSON | Source name, bbox, feature names/versions/params, dropped-edge counts, library + OCP version, healing/normalise flags. `source_path` (absolute input path) exists in memory but is not written to archives unless `save(..., include_source_path=True)` |
 
 Default features and their shapes are in [features.md](features.md) (generated from the registry).
 
@@ -45,4 +45,4 @@ Default features and their shapes are in [features.md](features.md) (generated f
 ## Changes
 
 - **1.1.0**: added optional `pair_feats` (`pair/<name>` keys in the `.npz`) and a `num_faces` entry. Archives from 1.0 still load.
-- `meta["source_path"]` (resolved input path, `None` for in-memory shapes) is used by `bg.viz` to re-load the part.
+- `meta["source_path"]` (resolved input path, `None` for in-memory shapes) is used by `bg.viz` to re-load the part. It is left out of saved archives by default, so shared datasets do not carry local paths.

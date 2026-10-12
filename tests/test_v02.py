@@ -365,3 +365,15 @@ def test_release_mesh_clears_cached_triangles():
     ctx.release_mesh()
     assert not F.has_triangulation(ctx.topology.solid)
     assert ctx.triangles(0) is not None  # transparently re-meshes
+
+
+def test_viewing_a_loaded_archive_needs_source_or_embedded_path(step, tmp_path, plotly):
+    shape = F.pocket_box()
+    path = step(shape)
+    bg.load(path).save(tmp_path / "plain.npz")
+    loaded = bg.BrepGraph.load(tmp_path / "plain.npz")
+    with pytest.raises(bg.BrepGraphError, match="saved without it"):
+        bg.viz.show(loaded)
+    assert isinstance(bg.viz.show(loaded, source=path), plotly.Figure)
+    bg.load(path).save(tmp_path / "kept.npz", include_source_path=True)
+    assert isinstance(bg.viz.show(bg.BrepGraph.load(tmp_path / "kept.npz")), plotly.Figure)

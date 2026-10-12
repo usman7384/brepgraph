@@ -23,7 +23,7 @@ def _convert(args) -> None:
         unify_faces=args.unify_faces,
         normalize=args.normalize,
     )
-    g.save(args.output)
+    g.save(args.output, include_source_path=args.embed_source_path)
     print(
         f"{args.input} -> {args.output}: {g.num_faces} faces, {g.num_edges} edges, "
         f"{len(g.node_feats)} node + {len(g.edge_feats)} edge features"
@@ -70,6 +70,11 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--preset", default="uvnet", choices=presets.names())
     c.add_argument("--grid-size", type=int, default=None)
     c.add_argument("--normalize", action="store_true", help="centre and scale longest side to 1")
+    c.add_argument(
+        "--embed-source-path",
+        action="store_true",
+        help="store the absolute input path in the archive (lets the viewer re-load the part)",
+    )
     c.add_argument("--unify-faces", action="store_true", help="merge same-domain faces")
     c.add_argument("--no-heal", action="store_true", help="do not attempt ShapeFix on invalid input")
     c.set_defaults(func=_convert)
