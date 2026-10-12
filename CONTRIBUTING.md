@@ -38,10 +38,27 @@ CI runs the same checks on Linux, macOS and Windows for Python 3.10 to 3.13.
   imported lazily inside the functions that need them.
 - **Schema changes.** Anything that changes the stored layout bumps `SCHEMA_VERSION` (minor for additive,
   major for breaking) and is described in `docs/schema.md`.
+- **Parallel code.** `load_many` and `brepgraph batch` run work in spawned processes: anything passed to a worker
+  must be a picklable top-level function. Test helpers that run inside workers live in `tests/batch_helpers.py`.
 - Regenerate the feature reference with `python scripts/gen_feature_docs.py`; a test fails if it drifts.
-- Add a line to `CHANGELOG.md`.
+- Add a line under `## [Unreleased]` in `CHANGELOG.md`.
 
 ## Test data
 
 Tests build their shapes in code. To run the invariants on real parts, put STEP files in `tests/data`
 (not committed; check each file's license) and run `pytest -m data`.
+
+## Releasing (maintainers)
+
+Publishing is automatic: pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml`, which checks that the tag
+matches `__version__`, builds, uploads to PyPI through trusted publishing, and creates the GitHub release.
+
+1. Set `__version__` in `src/brepgraph/__init__.py`, rename `## [Unreleased]` in `CHANGELOG.md` to the version and
+   date (and add a fresh empty `## [Unreleased]` plus the compare links), and update `version` / `date-released` in
+   `CITATION.cff`. Commit as `release: vX.Y.Z`.
+2. Push `main` and wait for CI to pass.
+3. Create and push only that tag: `git tag -a vX.Y.Z -m "brepgraph X.Y.Z"` then `git push origin tag vX.Y.Z`.
+4. Afterwards set the version on `main` to the next `.dev0`.
+
+Never run `git push --tags`: every pushed `v*` tag publishes, and PyPI versions cannot be replaced.
+

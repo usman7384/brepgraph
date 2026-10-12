@@ -92,15 +92,18 @@ def sample_files(folder: Path | None) -> list[Path]:
 
 def main() -> None:
     folder = Path(sys.argv[1]) if len(sys.argv) > 1 else None
+    # parallel loading; each solid of a multi-body file becomes a graph; unit size keeps features scaled
+    results = bg.load_many(sample_files(folder), normalize=True, all_solids=True)
     graphs = []
-    for path in sample_files(folder):
-        try:
-            data = bg.load(path, normalize=True).to_pyg()  # unit-sized parts keep area/centroid well scaled
-        except bg.BrepGraphError as exc:  # e.g. multi-solid files
-            print(f"skipping {path.name}: {exc}")
+    for result in results:
+        if not result.ok:
+            print(f"skipping {Path(result.source).name}: {result.error}")
             continue
-        data.y = torch.randint(0, 5, (data.num_nodes,))  # placeholder per-face labels
-        graphs.append(data)
+        for g in result.graphs:
+            data = g.to_pyg()
+            data.y = torch.randint(0, 5, (data.num_nodes,))  # placeholder per-face labels
+            graphs.append(data)
+    print(f"{len(graphs)} graphs from {len(results)} files")
 
     model = FaceClassifier()
     optimiser = torch.optim.Adam(model.parameters(), lr=1e-3)

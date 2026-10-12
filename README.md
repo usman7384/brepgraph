@@ -1,6 +1,8 @@
 # brepgraph
 
 [![CI](https://github.com/usman7384/brepgraph/actions/workflows/ci.yml/badge.svg)](https://github.com/usman7384/brepgraph/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/brepgraph.svg)](https://pypi.org/project/brepgraph/)
+[![Python](https://img.shields.io/pypi/pyversions/brepgraph.svg)](https://pypi.org/project/brepgraph/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Turn B-rep CAD files into ML-ready graphs. A STEP file goes in; a framework-neutral NumPy graph comes out.
@@ -51,6 +53,8 @@ brepgraph convert part.step part.npz --preset uvnet
 brepgraph info part.npz
 brepgraph view part.step --color-by area      # interactive HTML next to the input
 brepgraph view part.step --kind graph         # the face graph instead of the 3-D part
+brepgraph convert assembly.step asm.npz --all-solids   # one graph per solid
+brepgraph batch data/ -o graphs/              # a whole dataset in parallel, with report.json
 ```
 
 All errors derive from `bg.BrepGraphError` (`FileReadError`, `UnsupportedShapeError`, `InvalidSolidError`,
