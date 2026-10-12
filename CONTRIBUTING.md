@@ -16,8 +16,8 @@ pre-commit install                                    # optional
 ## Before opening a pull request
 
 ```bash
-ruff check src tests scripts
-ruff format --check src tests scripts
+ruff check src tests scripts examples
+ruff format --check src tests scripts examples
 mypy
 pytest                  # fast suite; `pytest -m slow` adds the 500+ face part
 ```
